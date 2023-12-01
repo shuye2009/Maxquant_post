@@ -1,0 +1,32 @@
+Files:
+  data_dir : C/data/raw/EDYTA/PROTEIN
+  folder : 230117_Lori_rerun211229
+  organism : HUMAN
+  fasta : ../../resource/human_uniprot_reference_proteome_9606.fasta/UP000005640_9606_061820_SALL4mut.fasta
+  id_map : 
+  aaInfo : ../../resource/Amino_acids_info.tab
+  service : TRUE
+Extract:
+  enabled : TRUE
+  isLFQ : TRUE 
+  out_dir : maxquant_processed
+Virus:
+  enabled : TRUE
+  viral_fasta : ../../resource/EB_virus_fasta/uniprot-proteome_UP000153037_strain_B95-8.fasta
+  viral_name : EBVB9
+SAINT:
+  enabled : FALSE
+  baitAsPrey : FALSE
+  useProhits : FALSE
+  prohits : ../../resource/GFP_IP_from_prohits.tab
+  data_name : 210505_LF
+  excutable_path : C/GREENBLATT/SAINT/SAINTexpress_v3.6.3__2018-03-09/Precompiled_binaries/Windows64
+TimeSeries:
+  enabled : FALSE
+STATS:
+  enabled : FALSE
+  comparison : Treatment|ND,Dose,Group|MOCK
+Modifications:
+  enabled : FALSE
+  types : GlyGly (K),HexNAc (ST)
+  

@@ -1,0 +1,25 @@
+Files:
+  data_dir : C/data/raw/EDYTA/PROTEIN
+  folder : 200825_Vero
+  organism : CHLSB
+  fasta : resource/green_monkey_uniprot_reference_proteome_60711.fasta/UP000029965_60711.fasta
+  id_map : 
+  aaInfo : resource/Amino_acids_info.tab
+Extract:
+  enabled : TRUE
+  isLFQ : TRUE 
+  out_dir : maxquant_processed
+Virus:
+  enabled : TRUE
+  viral_fasta : resource/sars2_uniprot_reference_proteome_2697049.fasta/REFSEQ_Wuhan_Hu_1_nr.fasta
+  viral_name : SARS2
+SAINT:
+  enabled : FALSE
+  baitAsPrey : FALSE
+  useProhits : FALSE
+  prohits : resource/GFP_IP_from_prohits.tab
+  data_name : 
+  excutable_path : C/GREENBLATT/SAINT/SAINTexpress_v3.6.3__2018-03-09/Precompiled_binaries/Windows64
+TimeSeries:
+  enabled : TRUE
+  

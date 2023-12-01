@@ -1,0 +1,25 @@
+Files:
+  data_dir : C/data/raw/EDYTA/PROTEIN
+  folder : 210510_AB_TH
+  organism : NA
+  fasta : resource/210128_service_AlexB_TH.fasta/Library_MSMS_cleavaged.fasta
+  id_map : NA
+  aaInfo : resource/Amino_acids_info.tab
+Extract:
+  enabled : TRUE
+  isLFQ : TRUE 
+  out_dir : maxquant_processed
+Virus:
+  enabled : FALSE
+  viral_fasta : resource/EB_virus_fasta/uniprot-proteome_UP000153037_strain_B95-8.fasta
+  viral_name : EBVB9
+SAINT:
+  enabled : FALSE
+  baitAsPrey : FALSE
+  useProhits : FALSE
+  prohits : resource/GFP_IP_from_prohits.tab
+  data_name : 210505_LF
+  excutable_path : C/GREENBLATT/SAINT/SAINTexpress_v3.6.3__2018-03-09/Precompiled_binaries/Windows64
+TimeSeries:
+  enabled : FALSE
+  

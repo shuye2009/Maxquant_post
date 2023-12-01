@@ -2,3 +2,7 @@
 .Rhistory
 .RData
 .Ruserdata
+.Maxquant_post.Rproj
+.extract_maxquant.R
+./yml
+
