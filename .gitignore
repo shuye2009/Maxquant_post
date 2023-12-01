@@ -3,6 +3,7 @@
 .RData
 .Ruserdata
 Maxquant_post.Rproj
-extract_maxquant.R
-/yml/
+run_maxquant_analyzer.R
+run_SAINT_analysis.R
+yml
 

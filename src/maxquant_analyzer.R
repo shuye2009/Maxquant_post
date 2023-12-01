@@ -29,8 +29,8 @@ args <- commandArgs(trailingOnly = F)
 scriptPath <- normalizePath(dirname(sub("^--file=", "", args[grep("^--file=", args)])))  # get the path to where main.R is located
 
 ## load all externeal files
-source(paste(scriptPath,"/src/extract_maxquant_lib.R",sep=""))
-source(paste(scriptPath,"/src/extract_maxquant.R",sep=""))
+source(paste(scriptPath,"extract_maxquant_lib.R",sep=""))
+source(paste(scriptPath,"extract_maxquant.R",sep=""))
 
 
 # check if libraries are installed
@@ -163,44 +163,3 @@ if(!exists('DEBUG') || DEBUG==F) main(opt)
 
 
 
-#setwd("C:\\GREENBLATT\\Rscripts\\Maxquant_postprocess")
-#system("Rscript maxquant_analyzer.R -c yml/220720_MaryChang.yml")
-#system("Rscript maxquant_analyzer.R -c yml/220520_Meena_SG.yml")
-#system("Rscript maxquant_analyzer.R -c yml/220524_Shamira_TH.yml")
-#system("Rscript maxquant_analyzer.R -c yml/220525_Sabrina_MM.yml")
-#system("Rscript maxquant_analyzer.R -c yml/220527_MaryChang1.yml")
-#system("Rscript maxquant_analyzer.R -c yml/220527_MaryChang2.yml")
-
-#system("Rscript maxquant_analyzer.R -c yml/220328_HZ_Bonin.yml")
-
-#system("Rscript maxquant_analyzer.R -c yml/220316_Shamira_TH.yml")
-#system("Rscript maxquant_analyzer.R -c yml/220222_INF5_DIA.yml")
-
-#system("Rscript maxquant_analyzer.R -c yml/220104_Nabeel_GZ.yml")
-#system("Rscript maxquant_analyzer.R -c yml/220104_Umamam_LF.yml")
-#system("Rscript maxquant_analyzer.R -c yml/211221_INF5_2.yml")
-#system("Rscript maxquant_analyzer.R -c yml/211206_SHAMIRA_TH.yml")
-#system("Rscript maxquant_analyzer.R -c yml/211206_inf5_SARS2.yml")
-#system("Rscript maxquant_analyzer.R -c yml/211115_BABAK_JM.yml")
-#system("Rscript maxquant_analyzer.R -c yml/210324_Nabeel.yml")
-#system("Rscript maxquant_analyzer.R -c yml/210629_Nabeel_GZ.yml")
-#system("Rscript maxquant_analyzer.R -c yml/211025_Babak_JM.yml")
-#system("Rscript maxquant_analyzer.R -c yml/211025_umama_LF.yml")
-#system("Rscript maxquant_analyzer.R -c yml/210929_SARS2_INF4.yml")
-#system("Rscript maxquant_analyzer.R -c yml/210820_Zuyao.yml")
-#system("Rscript maxquant_analyzer.R -c yml/210811_Nishanth_CM.yml")
-#system("Rscript maxquant_analyzer.R -c yml/210803_Calu3_drugs_Inf3.yml")
-#system("Rscript maxquant_analyzer.R -c yml/210727_Calu3_drugs_INF2_regular.yml")
-#system("Rscript maxquant_analyzer.R -c yml/210727_Calu3_drugs_INF2_targetted.yml")
-
-
-#system("Rscript maxquant_analyzer.R -c yml/210722_Babak_JM_BIoID.yml")
-
-#system("Rscript maxquant_analyzer.R -c yml/210621_SERVICE_SG_MED.yml")
-#system("Rscript maxquant_analyzer.R -c yml/210617_SARS2_DRUGS_EXP1.yml")
-#system("Rscript maxquant_analyzer.R -c yml/201027_sars2_infected.yml")
-#system("Rscript maxquant_analyzer.R -c yml/210212_SaRS2_Caco2_full.yml")
-#system("Rscript maxquant_analyzer.R -c yml/201102_sars2_infected_calu3_caco2.yml")
-#system("Rscript maxquant_analyzer.R -c yml/200825_Vero.yml")
-#system("Rscript maxquant_analyzer.R -c yml/200827_caco2_huh7.yml")
-#system("Rscript maxquant_analyzer.R -c yml/210510_AB_TH.yml")
