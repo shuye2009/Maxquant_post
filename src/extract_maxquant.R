@@ -6,24 +6,34 @@ library(limma)
 library(plotrix)
 
 
-extract_spc <- function(pg_table, folder, geneNameDesc){
+extract_spc <- function(pg_table, folder, geneNameDesc, design){
+  
+  experiments <- design$Experiment
+  experiments <- gsub("#", ".", experiments, fixed=T)
 
   Spectral_Count <- getSpectralCount(pg_table)
-
-  if(dim(Spectral_Count)[1] > 5 & dim(Spectral_Count)[2] > 5){
-    pdf(paste("Total_spectral_count_from_proteinGroup_heatmap.pdf", sep=""),  width=12, height=12)
-    pheatmap(Spectral_Count, margins=c(10,10))
-    dev.off()
-  }
 
   Spectral_Count <- AnnotateWithSymbol(Spectral_Count, geneNameDesc)
 
   write.table(Spectral_Count, paste("Total_spectral_count_from_",folder,".tab", sep=""), col.names=NA, row.names=TRUE, sep="\t", quote=F)
+  
+  if(dim(Spectral_Count)[1] > 5 & dim(Spectral_Count)[2] > 7){
+    pdf(paste("Total_spectral_count_from_proteinGroup_heatmap.pdf", sep=""),  width=12, height=12)
+    rn <- paste(Spectral_Count[, "Symbol"], Spectral_Count[, "Organism"], sep = "_")
+    df <- data.frame(Spectral_Count[, experiments], row.names = rn) %>%
+      filter(if_any(where(is.numeric)))
+    
+    pheatmap(df, margins=c(10,10), fontsize_row = 7)
+    dev.off()
+  }
 
   return(Spectral_Count)
 }
 
-extract_peptideCount <- function(pg_table, folder, geneNameDesc){
+extract_peptideCount <- function(pg_table, folder, geneNameDesc, design){
+  
+  experiments <- design$Experiment
+  experiments <- gsub("#", ".", experiments, fixed=T)
 
   Peptide_Count <- getPeptideCount(pg_table)
   
@@ -33,28 +43,30 @@ extract_peptideCount <- function(pg_table, folder, geneNameDesc){
 
   #Peptide_Count <- as.matrix(Peptide_Count[sort(rownames(Peptide_Count)),])
 
-  if(dim(Peptide_Count)[1] > 5 & dim(Peptide_Count)[2] > 5){
-    pdf(paste("Peptide_count_from_proteinGroup_heatmap.pdf", sep=""),  width=12, height=12)
-    pheatmap(Peptide_Count, margins=c(10,10))
-    dev.off()
-  }
-
   Peptide_Count <- AnnotateWithSymbol(Peptide_Count, geneNameDesc)
 
   write.table(Peptide_Count, paste("Peptide_count_from_",folder,".tab", sep=""), col.names=NA, row.names=TRUE, sep="\t", quote=F)
   
+  if(dim(Peptide_Count)[1] > 5 & dim(Peptide_Count)[2] > 7){
+    pdf(paste("Peptide_count_from_proteinGroup_heatmap.pdf", sep=""),  width=12, height=12)
+    rn <- paste(Peptide_Count[, "Symbol"], Peptide_Count[, "Organism"], sep = "_")
+    df <- data.frame(Peptide_Count[, experiments], row.names = rn) %>%
+      filter(if_any(where(is.numeric)))
+    
+    pheatmap(df, margins=c(10,10), fontsize_row = 7)
+    dev.off()
+  }
   return(Peptide_Count)
 }
 
 extract_intensity <- function(pg_table, folder, geneNameDesc, design, isLFQ){
 
   LFQintensity <- NULL
-  experiments <- design$Experiment
   
+  experiments <- design$Experiment
   experiments <- gsub("#", ".", experiments, fixed=T)
   
   LFQintensity <- getLFQintensity(pg_table, LFQ=isLFQ)
-  
   
   if(!is.null(LFQintensity)){
 
@@ -65,9 +77,13 @@ extract_intensity <- function(pg_table, folder, geneNameDesc, design, isLFQ){
 
     logLFQintensity <- LFQintensity  ## log transformed for subsequent analysis
     logLFQintensity[, experiments] <- log2(LFQintensity[, experiments] + 1)
-    if(dim(LFQintensity)[1] > 5 & dim(LFQintensity)[2] > 9){
-       pdf(paste("LFQintensity_from_proteinGroup_heatmap.pdf", sep=""),  width=12, height=12)
-       pheatmap(logLFQintensity[, experiments], margins=c(10,10))
+   
+    if(dim(LFQintensity)[1] > 5 & dim(LFQintensity)[2] > 7){
+       pdf(paste("LFQintensity_from_proteinGroup_heatmap.pdf", sep=""),  width=12, height=20)
+       rn <- paste(logLFQintensity[, "Symbol"], logLFQintensity[, "Organism"], sep = "_")
+       df <- data.frame(logLFQintensity[, experiments], row.names = rn) %>%
+         filter(if_any(where(is.numeric)))
+       pheatmap(df, margins=c(10,10), fontsize_row = 7)
        dev.off()
     }
     
@@ -122,63 +138,65 @@ prepare_for_MiST <- function(data_mat, geneNameDesc, expOrder, design, dataName,
   write.table(MiSTinput, paste(dataName, type,"forMiST.tab", sep="_"), sep="\t", quote=F, row.names=F, col.names=F)
 }
 
-plot_viral_protein <- function(logNormLFQintensity, groupDesign, viral_name="SARS2", folder){
+plot_viral_protein <- function(intensity_data, groupDesign, viral_name="SARS2", folder){
   #groupDesign <- read.delim(paste("C:/data/raw/EDYTA/PROTEIN", folder, "combined", "experimentalDesignTemplate_TS.txt", sep="/"))
   data_name <- "LFQintensity"
+  rownames(intensity_data) <- as.character(intensity_data$Symbol)
 
   experiments <- groupDesign$Experiment
   ngroups <- nrow(unique(groupDesign[, c("Time", "Group", "Cell")]))
   nreplicates <- length(experiments)/ngroups
   CellLines <- unique(groupDesign$Cell)
 
-  intensity_data <- logNormLFQintensity
-
   vpName <- rownames(intensity_data[intensity_data$Organism==viral_name,])
-  print(data_name)
-  print(dim(intensity_data))
-
-  data_name_copy <- data_name
+  
+  print(vpName)
 
   for(cellLine in CellLines){
     #cellLine <- CellLines[1]
-    exps <- groupDesign$Group[groupDesign$Cell == cellLine]
-    tps <- groupDesign$Time[groupDesign$Cell == cellLine]
+    samples <- groupDesign %>%
+      dplyr::filter(Cell == cellLine) %>%
+      dplyr::pull(Name)
+    exps <- groupDesign %>%
+      dplyr::filter(Cell == cellLine) %>%
+      dplyr::pull(Group) 
+    tps <- groupDesign %>%
+      dplyr::filter(Cell == cellLine) %>%
+      dplyr::pull(Time)
     conditions <- paste(exps, tps, sep="_")
     exps <- unique(exps)
     exps <- exps[exps != ""]
     tp <- sort(unique(tps))
 
+    dataMat <- intensity_data[, samples]
 
-    #data_name <- paste(cellLine, data_name_copy, sep="_")
-    dataMat <- (intensity_data[, grepl(cellLine, colnames(intensity_data))])
-    #rownames(dataMat) <- as.character(intensity_data$Symbol)
-
-    #rowsum <- apply(dataMat, 1, sum)
-    #rowsum0 <- rowsum[which(rowsum == 0)]
-    #dataMat <- dataMat[!rownames(dataMat) %in% names(rowsum0), ]
-    #dataMat["N", "Huh7_0hrs_1"] <- 0 # outlier
     col_labels <- colnames(dataMat)
 
     head(dataMat)
     plotMDS(dataMat, top=10000, labels=col_labels)
+    pheatmap::pheatmap(cor(dataMat))
 
     corMatrix <- cor(t(dataMat))
-
-    #pheatmap(dataMat)
     DTC <- as.matrix(corMatrix[row.names(corMatrix) %in% vpName, !colnames(corMatrix) %in% vpName])
     DTC[is.na(DTC)] <- 0
     corTable <- as.data.frame(t(DTC))
 
     #corTable <- corTable[order(corTable$P0DTC9),]
-    write.table(corTable, paste(cellLine, data_name, folder, "correlation_with_viral_proteins.tab", sep="_"), row.names = T, col.names = NA, sep="\t", quote=F)
+    write.table(corTable, paste(cellLine, data_name, folder, 
+                                "correlation_with_viral_proteins.tab", sep="_"), 
+                row.names = T, col.names = NA, sep="\t", quote=F)
 
+    if(0){
     if(ncol(DTC) > 3 && nrow(DTC) > 3){
-      pdf(paste(cellLine, data_name, folder, "viral_correlation_heatmap.pdf", sep="_"), width=8, height=8)
+      pdf(paste(cellLine, data_name, folder, "viral_correlation_heatmap.pdf", sep="_"), 
+          width=8, height=8)
       pheatmap(t(DTC), main="correlation between viral and human proteins")
       dev.off()
     }
+    }
 
-    pdf(paste(cellLine, data_name, folder, "viral_protein_expression.pdf", sep="_"), width=12, height=6)
+    pdf(paste(cellLine, data_name, folder, "viral_protein_expression.pdf", sep="_"), 
+        width=12, height=6)
     opar <- par(mfrow=c(1,length(exps)))
 
     vpsMat <- t(dataMat[vpName, col_labels])
@@ -189,9 +207,11 @@ plot_viral_protein <- function(logNormLFQintensity, groupDesign, viral_name="SAR
 
     for(exp in exps){
       #exps <- "INF"
-      subgroup <- groupDesign[groupDesign$Group == exp & groupDesign$Cell == cellLine,]
-      subgroup <- subgroup[order(subgroup$Time),]
-      subMat <- as.data.frame(vpsMat[subgroup$Experiment, ])
+      subgroup <- groupDesign %>%
+        dplyr::filter(Group == exp, Cell == cellLine) %>%
+        dplyr::arrange(Time)
+      
+      subMat <- as.data.frame(vpsMat[subgroup$Name, ])
       colnames(subMat) <- colnames(vpsMat)
 
       plotMatrix(exp, subMat, timep=tp, reps=nreplicates, ylabel=paste("Log2(", data_name, ")", sep=""), yrange=yrange)
@@ -200,6 +220,7 @@ plot_viral_protein <- function(logNormLFQintensity, groupDesign, viral_name="SAR
     par(opar)
     dev.off()
 
+    if(0){
     pdf(paste(cellLine, data_name, folder, "correlation.pdf", sep="_"), width=12, height=8)
 
     opar <- par(mfrow=c(2,length(exps)))
@@ -228,12 +249,14 @@ plot_viral_protein <- function(logNormLFQintensity, groupDesign, viral_name="SAR
         matList[["top"]] <- t(dataMat[top, col_labels])
         matList[["bottom"]] <- t(dataMat[bottom, col_labels])
         for(Mat in c("top", "bottom")){
-          vpsMat <- matList[[Mat]]
+          vpsMati <- matList[[Mat]]
           for(exp in exps){
-            subgroup <- groupDesign[groupDesign$Group == exp & groupDesign$Cell == cellLine,]
-            subgroup <- subgroup[order(subgroup$Time),]
-            subMat <- as.data.frame(vpsMat[subgroup$Experiment, ])
-            colnames(subMat) <- colnames(vpsMat)
+            subgroup <- groupDesign %>%
+              dplyr::filter(Group == exp, Cell == cellLine) %>%
+              dplyr::arrange(Time)
+            
+            subMat <- as.data.frame(vpsMati[subgroup$Name, ])
+            colnames(subMat) <- colnames(vpsMati)
             plotMatrix(paste(vp, exp, Mat, sep=":"), subMat, timep=tp, reps=nreplicates, ylabel=paste("Log2(", data_name, ")", sep=""), yrange=yrange)
           }
         }
@@ -242,19 +265,19 @@ plot_viral_protein <- function(logNormLFQintensity, groupDesign, viral_name="SAR
 
     par(opar)
     dev.off()
-
+    }
   }
 }
 
 collect_protein_info <- function(aaInfo, fasta, organism, viral, viral_fasta, viral_name, id_map){
   if(0){
-     aaInfo <- "resource/Amino_acids_info.tab"
-     fasta <- "resource/mouse_uniprot_reference_protoeme_10090.fasta/UP000000589_10090.fasta"
+     aaInfo <- "./resource/Amino_acids_info.tab"
+     fasta <- "./resource/mouse_uniprot_reference_protoeme_10090.fasta/UP000000589_10090.fasta"
      organism <- "MOUSE"
      id_map <- NULL
-     viral <- F
-     viral_fasta <- "resource/sars2_uniprot_reference_proteome_2697049.fasta/REFSEQ_Wuhan_Hu_1_nr.fasta"
-     viral_name <- "SARS2"
+     viral <- TRUE
+     viral_fasta <- "./resource/EB_virus_fasta/uniprot-proteome_UP000153037_strain_B95-8.fasta"
+     viral_name <- "EBVB9"
   }
      
   aaTable <- read.delim(aaInfo, header=T)
@@ -308,11 +331,11 @@ run_extract <- function(hwd, folder, geneNameDesc, isLFQ, outdir, TS, service){
 
   ## spectral count ####
   print("processing spectral count")
-  try(Spectral_Count <- extract_spc(pg_table, folder, geneNameDesc))
+  try(Spectral_Count <- extract_spc(pg_table, folder, geneNameDesc, design))
 
 ## peptide count ####
   print("processing peptide count")
-  try(Peptide_Count <- extract_peptideCount(pg_table, folder, geneNameDesc))
+  try(Peptide_Count <- extract_peptideCount(pg_table, folder, geneNameDesc, design))
 
 ## LFQ intensity ####
   print("processing LFQ intensity")
@@ -328,25 +351,27 @@ run_extract <- function(hwd, folder, geneNameDesc, isLFQ, outdir, TS, service){
     write.table(logNormLFQintensity, paste("TotalIntensity_normalized_log2LFQintensity_from_",folder,".tsv", sep=""), col.names=NA, row.names=TRUE, sep="\t", quote=F)
   }
 
-
+  
   if(TS){
     groupDesign <- read.delim(file.path(hwd, folder, "combined", "experimentalDesignTemplate_TS.txt"))
+    experiments <- groupDesign$Experiment
+    experiments <- gsub("#", ".", experiments, fixed=T)
     ngroups <- nrow(unique(groupDesign[, c("Time", "Group", "Cell")]))
     nreplicates <- length(experiments)/ngroups
   }else{
-    groupDesign <- design
     ngroups <- nreplicates <- 1
   }
 
-  experiments <- groupDesign$Experiment
-  experiments <- gsub("#", ".", experiments, fixed=T)
-  lfq <- colSums(LFQintensity[, experiments])
-  loglfq <- colSums(logLFQintensity[, experiments])
-  cs <- colSums(norm_data[, experiments])
-  lcs <- colSums(logNormLFQintensity[, experiments])
-
-
   if(!service){
+    
+    experiments <- design$Experiment
+    experiments <- gsub("#", ".", experiments, fixed=T)
+    
+    lfq <- colSums(LFQintensity[, experiments])
+    loglfq <- colSums(logLFQintensity[, experiments])
+    cs <- colSums(norm_data[, experiments])
+    lcs <- colSums(logNormLFQintensity[, experiments])
+    
     pdf(paste("Total_intensity", folder, "per_sample.pdf", sep="_"))
     cl <- rep(c(1:ngroups),each=nreplicates)
     opar <- par(mar=c(2, 20, 3, 1)+0.1)
@@ -498,8 +523,10 @@ do_stats <- function(hwd, folder, data_name, outdir, comparisons){
     LFQintensity <- read.delim(intensity_file, sep="\t", header=TRUE)
 
     viral_prot <- LFQintensity[LFQintensity$Organism == data_name, "X"]
+    viral_prot_name <- LFQintensity[LFQintensity$Organism == data_name, "Symbol"]
 
     imputed_viral <- imputed_logLFQ[viral_prot,]
+    rownames(imputed_viral) <- viral_prot_name
     plot_stats_treat_dose_group(imputed_viral, groupDesign, data_name=paste(data_name, "_protein", sep=""), comparisons)
 
   }

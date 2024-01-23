@@ -256,8 +256,7 @@ getMolecularWeight <- function(weightList, seq){
 }
 ## extract information from uniprot fasta header, to get a dataframe of Accession, geneName, description
 build_id_map <- function(wList, fasta, organism){
-   
-   #fasta <- file.path(getwd(), "resource/sars2_uniprot_reference_proteome_2697049.fasta/REFSEQ_Wuhan_Hu_1_nr.fasta")
+  
   uniprot_fasta <- readLines(fasta)
 
   ## get sequence length
@@ -769,7 +768,10 @@ plot_stats_treat_dose_group <- function(intensity, groupDesign, data_name, compa
   #print(groupDesign)
   #intensity <- imputed_viral
   #data_name <- modification
-
+  
+  message("plotting STATS")
+  #print(head(intensity))
+  
   categs <- unlist(strsplit(comparisons, split=","))
   categ <- unlist(lapply(categs, function(x) unlist(strsplit(x, split="|", fixed=T))[1]))
   categRef <- unlist(lapply(categs, function(x) unlist(strsplit(x, split="|", fixed=T))[2]))
@@ -785,120 +787,177 @@ plot_stats_treat_dose_group <- function(intensity, groupDesign, data_name, compa
     print("downsized to 10000 randomly selected genes")
   }
 
-  Gene <- NULL
-  Experiment <- NULL
-  Treatment <- NULL
-  Dose <- NULL
-  Group <- NULL
-  Log2Intensity <- NULL
+  ## turn headers into variables, so the header can be changed as needed
+  NAME <- colnames(groupDesign)[1] 
+  EXPERIMENT <- colnames(groupDesign)[2]
+  TREATMENT <- colnames(groupDesign)[3] 
+  DOSE <- colnames(groupDesign)[4] 
+  GROUP <- colnames(groupDesign)[5]
+  CELL <- colnames(groupDesign)[6]
+  
+  gene_list <- lapply(rownames(intensity), function(mod){
+    exp_list <- lapply(colnames(intensity), function(exp){
+      ## one exp might be assigned to several treatment,
+      treat <- groupDesign[groupDesign[, EXPERIMENT] == exp, TREATMENT]
+      Treatment <- treat
+      Dose <- groupDesign[groupDesign[, EXPERIMENT] == exp, DOSE]
+      Group <- groupDesign[groupDesign[, EXPERIMENT] == exp, GROUP]
+      Cell <- groupDesign[groupDesign[, EXPERIMENT] == exp, CELL]
 
-  for(mod in rownames(intensity)){
-    for(exp in colnames(intensity)){
-      ## one exp might be assign to several treatment,
-      treat <- groupDesign[groupDesign$Experiment == exp, "Treatment"]
-      Treatment <- c(Treatment, treat)
-      Dose <- c(Dose, groupDesign[groupDesign$Experiment == exp, "Dose"])
-      Group <- c(Group, groupDesign[groupDesign$Experiment == exp, "Group"])
+      Log2Intensity <- rep(intensity[mod, exp], length(treat))
+      Gene <- rep(mod, length(treat))
+      Experiment <- rep(exp, length(treat))
+      data.frame(Gene, Experiment, Treatment, Dose=as.factor(Dose), 
+            Group, Cell, Log2Intensity)
+    })
+    bind_rows(exp_list)
+  })
 
-      Log2Intensity <- c(Log2Intensity, rep(intensity[mod, exp], length(treat)))
-      Gene <- c(Gene, rep(mod, length(treat)))
-      Experiment <- c(Experiment, rep(exp, length(treat)))
-    }
-  }
-
-  #stats_df <- apply(stats_df, 2, type.convert)
-  stats_df <- data.frame(Gene, Experiment, Treatment, Dose=as.factor(Dose), Group, Log2Intensity)
+  stats_df <- bind_rows(gene_list)
+  colnames(stats_df) <- c("Gene", EXPERIMENT, TREATMENT, DOSE, 
+                         GROUP, CELL, "Log2Intensity")
   #colnames(stats_df) <- c("Gene", "Experiment", "Treatment", "Dose", "Group", "Log2Intensity")
-  stats_df <- stats_df[order(stats_df$Group, decreasing=T), ]
-  stats_df$Log2Intensity
-  stats_df$Dose
-  summary(stats_df)
+  stats_df <- stats_df[order(stats_df[, GROUP], decreasing=T), ]
+  
+  print(summary(stats_df))
 
-  if(nrow(intensity) > 0){
-    pdf(paste(data_name, "_allGene_boxplot.pdf", sep=""), height=10, width=8)
-    #ggexport(p, filename=figname)
-
-    p1 <- ggboxplot(stats_df, x="Group", y="Log2Intensity",
-                   color = "black", palette = "jco", title=data_name, fill="Group",
-                   xlab=FALSE, add="jitter", add.params = list(size=1, color="darkred"), facet.by=c("Treatment")) +
-      geom_hline(yintercept = mean(stats_df$Log2Intensity), linetype = 2, color="black") + # Add horizontal line at base mean
-      stat_compare_means(label = "p.signif", ref.group=categRef["Group"], method="t.test")   # Pairwise comparison against dose 0
-    print(p1)
-
-    p2 <- ggboxplot(stats_df, x="Treatment", y="Log2Intensity", fill="Treatment",
-                   color = "black", palette = "jco", title=data_name,
-                   xlab=FALSE, add="jitter", add.params = list(size=1, color="darkred"), facet.by=c("Group")) +
-      geom_hline(yintercept = mean(stats_df$Log2Intensity), linetype = 2, color="black") + # Add horizontal line at base mean
-      stat_compare_means(method = "anova", label.y = max(stats_df$Log2Intensity)+1)+        # Add global annova p-value
-      stat_compare_means(label = "p.signif", ref.group=categRef["Treatment"], method="t.test") # Pairwise comparison against dose 0
-    print(p2)
-
-
-    dev.off()
-    pdf(paste(data_name, "_allGene_violinplot.pdf", sep=""), height=10, width=8)
-    #ggexport(p, filename=figname)
-
-    p3 <- ggviolin(stats_df, x="Group", y="Log2Intensity", fill="Group",
-                   color = "Group", palette = "jco", title=data_name,
-                   xlab=FALSE, add="boxplot", add.params = list(fill="white", color="black"), facet.by=c("Treatment", "Dose")) +
-      geom_hline(yintercept = mean(stats_df$Log2Intensity), linetype = 2, color="black") + # Add horizontal line at base mean
-      stat_compare_means(label = "p.signif", ref.group=categRef["Group"], method="t.test")   # Pairwise comparison against dose 0
-    print(p3)
-
-    p4 <- ggviolin(stats_df, x="Treatment", y="Log2Intensity", fill="Dose",
-                   color = "Treatment", palette = "jco", title = data_name,
-                   xlab=FALSE, add="boxplot", add.params = list(fill="white", color="black"), facet.by=c("Group")) +
-      geom_hline(yintercept = mean(stats_df$Log2Intensity), linetype = 2, color="black") + # Add horizontal line at base mean
-      stat_compare_means(method = "anova", label.y = max(stats_df$Log2Intensity)+1) +      # Add global annova p-value
-      stat_compare_means(label = "p.signif", ref.group=categRef["Treatment"], method="t.test") # Pairwise comparison against dose 0
-    print(p4)
-
-    dev.off()
+  if(nrow(intensity) <= 0){
+    message("The intensity table is empty, exiting")
+    return()
   }
+  
+  for(cell in unique(groupDesign[, CELL])){
+    cell_df <- stats_df %>%
+      dplyr::filter(Cell == cell)
+    if(nrow(cell_df) <= 0) next
+    
+    print(unique(cell_df$Treatment))
+    print(cell)
+    print(head(cell_df))
+    
+    pdf(paste(data_name, cell, "allGene_boxplot.pdf", sep="_"), height=10, width=8)
+    #ggexport(p, filename=figname)
 
-  if(nrow(intensity) < 50){
-    pdf(paste(data_name, "_perGene_boxplot.pdf", sep=""), height=10, width=8)
+    p1a <- ggboxplot(cell_df, x=DOSE, y="Log2Intensity",
+                   color = "black", palette = "jco", title=data_name, fill=DOSE,
+                   xlab=FALSE, add="jitter", facet.by=c(TREATMENT, GROUP)) +
+      geom_hline(yintercept = mean(cell_df$Log2Intensity), linetype = 2, 
+                 color="black") + # Add horizontal line at base mean
+      stat_compare_means(label = "p.signif", ref.group=categRef[DOSE], 
+                         method="t.test")   # Pairwise comparison against dose 0
+    print(p1a)
 
-    for(mod in rownames(intensity)){
+ 
+    p1b <- ggboxplot(cell_df, x=TREATMENT, y="Log2Intensity", fill=TREATMENT,
+                   color = TREATMENT, palette = "jco", title=data_name,
+                   xlab=FALSE, add="jitter", facet.by=c(GROUP, DOSE)) +
+      geom_hline(yintercept = mean(cell_df$Log2Intensity), linetype = 2, color="black") + # Add horizontal line at base mean
+      stat_compare_means(method = "anova", label.y = max(cell_df$Log2Intensity)+1)+        # Add global annova p-value
+      stat_compare_means(label = "p.signif", ref.group=categRef[TREATMENT], method="t.test") # Pairwise comparison against NT
+    print(p1b)
+    
+    p1c <- ggboxplot(cell_df, x=GROUP, y="Log2Intensity", fill=GROUP,
+                     color = GROUP, palette = "jco", title=data_name,
+                     xlab=FALSE, add="jitter", facet.by=c(TREATMENT, DOSE)) +
+      geom_hline(yintercept = mean(cell_df$Log2Intensity), linetype = 2, color="black") + # Add horizontal line at base mean
+      stat_compare_means(method = "anova", label.y = max(cell_df$Log2Intensity)+1)+        # Add global annova p-value
+      stat_compare_means(label = "p.signif", ref.group=categRef[GROUP], method="t.test") # Pairwise comparison against MOCK
+    print(p1c)
+    
+
+    dev.off()
+    pdf(paste(data_name, cell, "allGene_violinplot.pdf", sep="_"), height=10, width=8)
+    #ggexport(p, filename=figname)
+
+    p3a <- ggviolin(cell_df, x=DOSE, y="Log2Intensity", fill=DOSE,
+                   color = "black", palette = "jco", title=data_name,
+                   xlab=FALSE, add="boxplot", add.params = list(fill="white", color="black"), 
+                   facet.by=c(TREATMENT, GROUP)) +
+      geom_hline(yintercept = mean(cell_df$Log2Intensity), linetype = 2, 
+                 color="black") + # Add horizontal line at base mean
+      stat_compare_means(label = "p.signif", ref.group=categRef[DOSE], 
+                         method="t.test")   # Pairwise comparison against dose 0
+    print(p3a)
+
+  
+    p3b <- ggviolin(cell_df, x=TREATMENT, y="Log2Intensity", fill=TREATMENT,
+                   color = TREATMENT, palette = "jco", title = data_name,
+                   xlab=FALSE, add="boxplot", add.params = list(fill="white", color="black"), 
+                   facet.by=c(GROUP, DOSE)) +
+      geom_hline(yintercept = mean(cell_df$Log2Intensity), linetype = 2, color="black") + # Add horizontal line at base mean
+      stat_compare_means(method = "anova", label.y = max(cell_df$Log2Intensity)+1) +      # Add global annova p-value
+      stat_compare_means(label = "p.signif", ref.group=categRef[TREATMENT], method="t.test") # Pairwise comparison against NT
+    print(p3b)
+    
+    p3c <- ggviolin(cell_df, x=GROUP, y="Log2Intensity", fill=GROUP,
+                    color = GROUP, palette = "jco", title = data_name,
+                    xlab=FALSE, add="boxplot", add.params = list(fill="white", color="black"), 
+                    facet.by=c(TREATMENT, DOSE)) +
+      geom_hline(yintercept = mean(cell_df$Log2Intensity), linetype = 2, color="black") + # Add horizontal line at base mean
+      stat_compare_means(method = "anova", label.y = max(cell_df$Log2Intensity)+1) +      # Add global annova p-value
+      stat_compare_means(label = "p.signif", ref.group=categRef[GROUP], method="t.test") # Pairwise comparison against MOCK
+    print(p3c)
+    
+    dev.off()
+
+
+  if(length(unique(cell_df$Gene)) < 50){
+    pdf(paste(data_name, cell, "perGene_boxplot.pdf", sep="_"), height=10, width=8)
+
+    for(mod in unique(cell_df$Gene)){
       #mod <- "GPR89B|203"
-      sub_df <- stats_df[stats_df$Gene == mod,]
-      p5 <- ggboxplot(sub_df, x="Group", y="Log2Intensity",
-                   color = "Group", palette = "ucscgb", title=data_name, subtitle=mod,
-                   xlab=FALSE, add="jitter", facet.by=c("Treatment")) +
+      sub_df <- cell_df[cell_df$Gene == mod,]
+      p5a <- ggboxplot(sub_df, x=DOSE, y="Log2Intensity",
+                   color = DOSE, palette = "ucscgb", title=data_name, subtitle=mod,
+                   xlab=FALSE, add="jitter", facet.by=c(TREATMENT, GROUP)) +
+        stat_compare_means(label = "p.signif", ref.group=categRef[DOSE], method="t.test")
+      print(p5a)
 
-      stat_compare_means(label = "p.signif", ref.group=categRef["Group"], method="t.test")
-      print(p5)
-
-      p6 <- ggboxplot(sub_df, x="Treatment", y="Log2Intensity",
-                     color = "Treatment", palette = "ucscgb", title=data_name, subtitle=mod,
-                     xlab=FALSE, add="jitter", facet.by=c("Group")) +
-
-        stat_compare_means(label = "p.signif", ref.group=categRef["Treatment"], method="t.test")
-      print(p6)
+      p5b <- ggboxplot(sub_df, x=TREATMENT, y="Log2Intensity",
+                     color = TREATMENT, palette = "ucscgb", title=data_name, subtitle=mod,
+                     xlab=FALSE, add="jitter", facet.by=c(GROUP, DOSE)) + 
+        stat_compare_means(label = "p.signif", ref.group=categRef[TREATMENT], method="t.test")
+      print(p5b)
+      p5c <- ggboxplot(sub_df, x=GROUP, y="Log2Intensity",
+                       color = GROUP, palette = "ucscgb", title=data_name, subtitle=mod,
+                       xlab=FALSE, add="jitter", facet.by=c(TREATMENT, DOSE)) + 
+        stat_compare_means(label = "p.signif", ref.group=categRef[GROUP], method="t.test")
+      print(p5c)
     }
     dev.off()
   }
 
-  pdf(paste(data_name, "_perGene_violinplot.pdf", sep=""), height=10, width=8)
-  for(mod in rownames(intensity)){
+  pdf(paste(data_name, cell, "perGene_violinplot.pdf", sep="_"), height=10, width=8)
+  for(mod in unique(cell_df$Gene)){
     #mod <- "GPR89B|203"
-    sub_df <- stats_df[stats_df$Gene == mod,]
+    sub_df <- cell_df[cell_df$Gene == mod,]
 
-    p7 <- ggviolin(sub_df, x="Group", y="Log2Intensity", fill="Group",
-                   color = "Group", palette = "jco", title=data_name, subtitle=mod,
-                   xlab=FALSE, add="boxplot", add.params = list(fill="white", color="black"), facet.by=c("Treatment", "Dose")) +
-      stat_compare_means(label = "p.signif", ref.group=categRef["Group"], method="t.test")   # Pairwise comparison against dose 0
-    print(p7)
+    p7a <- ggviolin(sub_df, x=GROUP, y="Log2Intensity", fill=GROUP,
+                   color = GROUP, palette = "jco", title=data_name, subtitle=mod,
+                   xlab=FALSE, add="boxplot", add.params = list(fill="white", color="black"), 
+                   facet.by=c(TREATMENT, DOSE)) +
+      stat_compare_means(label = "p.signif", ref.group=categRef[GROUP], method="t.test")   # Pairwise comparison against MOCK
+    print(p7a)
 
-    p8 <- ggviolin(sub_df, x="Treatment", y="Log2Intensity", fill="Dose",
-                   color = "Treatment", palette = "jco", title = data_name, subtitle=mod,
-                   xlab=FALSE, add="boxplot", add.params = list(fill="white", color="black"), facet.by=c("Group")) +
+    p7b <- ggviolin(sub_df, x=TREATMENT, y="Log2Intensity", fill=TREATMENT,
+                   color = TREATMENT, palette = "jco", title = data_name, subtitle=mod,
+                   xlab=FALSE, add="boxplot", add.params = list(fill="white", color="black"),
+                   facet.by=c(GROUP, DOSE)) +
       stat_compare_means(method = "anova", label.y = max(sub_df$Log2Intensity)+1) +      # Add global annova p-value
-      stat_compare_means(label = "p.signif", ref.group=categRef["Treatment"], method="t.test") # Pairwise comparison against dose 0
-    print(p8)
+      stat_compare_means(label = "p.signif", ref.group=categRef[TREATMENT], method="t.test") # Pairwise comparison against NT
+    print(p7b)
+    
+    p7c <- ggviolin(sub_df, x=DOSE, y="Log2Intensity", fill=DOSE,
+                    color = DOSE, palette = "jco", title = data_name, subtitle=mod,
+                    xlab=FALSE, add="boxplot", add.params = list(fill="white", color="black"), 
+                    facet.by=c(TREATMENT, GROUP)) +
+      stat_compare_means(method = "anova", label.y = max(sub_df$Log2Intensity)+1) +      # Add global annova p-value
+      stat_compare_means(label = "p.signif", ref.group=categRef[DOSE], method="t.test") # Pairwise comparison against dose 0
+    print(p7c)
 
   }
   dev.off()
+  }
 }
 
 plot_stats_treat_dose_group_wrProteo <- function(path1, groupDesign, data_name, comparisons, mainSpec="HUMAN"){
@@ -921,30 +980,39 @@ plot_stats_treat_dose_group_wrProteo <- function(path1, groupDesign, data_name, 
   }
   setwd(outd)
   
-  colnames(groupDesign) <- toupper(colnames(groupDesign))
   print(groupDesign)
+  ## turn headers into variables, so the header can be changed as needed
+  NAME <- colnames(groupDesign)[1] 
+  EXPERIMENT <- colnames(groupDesign)[2]
+  TREATMENT <- colnames(groupDesign)[3] 
+  DOSE <- colnames(groupDesign)[4] 
+  GROUP <- colnames(groupDesign)[5]
+  CELL <- colnames(groupDesign)[6]
   
   categs <- unlist(strsplit(comparisons, split=","))
-  categs <- toupper(categs)
-  categ <- unlist(lapply(categs, function(x) unlist(strsplit(x, split="|", fixed=T))[1]))
-  categRef <- unlist(lapply(categs, function(x) unlist(strsplit(x, split="|", fixed=T))[2]))
+  
+  categ <- unlist(lapply(categs, function(x) 
+    unlist(strsplit(x, split="|", fixed=T))[1]))
+  categRef <- unlist(lapply(categs, function(x) 
+    unlist(strsplit(x, split="|", fixed=T))[2]))
   names(categRef) <- categ
   
   conditions <- apply(groupDesign[, categ], 1, function(x) paste(x, collapse="_"))
   conditions <- gsub(" ", "", conditions)
-  names(conditions) <- groupDesign$EXPERIMENT
+  names(conditions) <- groupDesign[, EXPERIMENT]
+  
 
   pdf("median_normalization.pdf", width=16, height=8)
   specPr <- c(conta="CON__", mainSpecies=mainSpec, spike=data_name)
-  dataMQ <- readMaxQuantFile(path1, specPref=specPr, normalizeMeth="median")
+  dataMQ <- readMaxQuantFile(path1, specPref=specPr, normalizeMeth="median",
+                             sampleNames = unique(groupDesign[, EXPERIMENT]))
   dev.off()
 
   dim(dataMQ$quant)
   summary(dataMQ$quant)
   head(dataMQ$quant)
-  cn <- colnames((dataMQ$quant))
 
-  grp9 <- conditions[cn] ## order conditions according to samples in the data matrix
+  grp9 <- conditions[unique(names(conditions))] ## make sure sample names in the data matrix and those in design
 
   pdf("missing_value_inspection.pdf", width=8, height=8)
   matrixNAinspect(dataMQ$quant, gr=grp9, retnNA = TRUE, tit="Missing value inspection")
@@ -954,8 +1022,11 @@ plot_stats_treat_dose_group_wrProteo <- function(path1, groupDesign, data_name, 
   
   pdf("missing_value_imputation.pdf", width=8, height=8)
   testMQall <- testRobustToNAimputation(dataMQ, gr=grp9, plotHist=T)
-  head(testMQall$datImp)
   dev.off()
+  
+  head(testMQall$datImp)
+  print("contrasts:")
+  print(testMQall$contrasts)
 
   pdf("PCA_plot.pdf", width=8, height=10)
   plotPCAw(testMQall$datImp, sampleGrp=grp9, tit="PCA on MaxQuant (NAs imputed)", rowTyName="proteins", useSymb2=0)
@@ -969,33 +1040,45 @@ plot_stats_treat_dose_group_wrProteo <- function(path1, groupDesign, data_name, 
     contrast <- colnames(testMQall$contrasts)[i]
     factors <- unlist(strsplit(contrast, split="-",fixed=T))
     treatments <- unlist(lapply(factors, function(x)unlist(strsplit(x, split="_",fixed=T))[1]))
+    doses <- unlist(lapply(factors, function(x)unlist(strsplit(x, split="_",fixed=T))[2]))
     groups <- unlist(lapply(factors, function(x)unlist(strsplit(x, split="_",fixed=T))[3]))
     
     grp_order <- 0
     contrastN <- NULL
     
-    ## reorder group contrast such that background group is fixed as the first element of the pair
-    if(treatments[1] == treatments[2] && categRef["GROUP"] %in% groups){
+    ## reorder group contrast such that background group is fixed as the second element of the pair
+    if(treatments[1] == treatments[2] && doses[1] == doses[2] && categRef[GROUP] %in% groups){
        
-       if(groups[1] == categRef["GROUP"]){
+       if(groups[1] == categRef[GROUP]){
           grp_order <- 1
-          contrastN <- paste0(factors[1], "_vs_", factors[2])
+          contrastN <- paste0(factors[2], "_vs_", factors[1])
        }else{
           grp_order <- -1
-          contrastN <- paste0(factors[2], "_vs_", factors[1])
+          contrastN <- paste0(factors[1], "_vs_", factors[2])
        }
        
     }
     
-    if(groups[1] == groups[2] && categRef["TREATMENT"] %in% treatments){
+    if(groups[1] == groups[2] && doses[1] == doses[2] && categRef[TREATMENT] %in% treatments){
        
-       if(treatments[1] == categRef["TREATMENT"]){
+       if(treatments[1] == categRef[TREATMENT]){
           grp_order <- 1
-          contrastN <- paste0(factors[1], "_vs_", factors[2])
+          contrastN <- paste0(factors[2], "_vs_", factors[1])
        }else{
           grp_order <- -1
-          contrastN <- paste0(factors[2], "_vs_", factors[1])
+          contrastN <- paste0(factors[1], "_vs_", factors[2])
        }
+    }
+    
+    if(groups[1] == groups[2] && treatments[1] == treatments[2] && categRef[DOSE] %in% doses){
+      
+      if(doses[1] == categRef[DOSE]){
+        grp_order <- 1
+        contrastN <- paste0(factors[2], "_vs_", factors[1])
+      }else{
+        grp_order <- -1
+        contrastN <- paste0(factors[1], "_vs_", factors[2])
+      }
     }
     
     if(grp_order != 0){
@@ -1032,9 +1115,6 @@ plot_stats_treat_dose_group_wrProteo <- function(path1, groupDesign, data_name, 
     }
   }
   dev.off()
-
-  testMQall$contrasts
-  testMQall$design
 
   return(testMQall$datImp)
 }

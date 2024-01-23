@@ -29,8 +29,8 @@ args <- commandArgs(trailingOnly = F)
 scriptPath <- normalizePath(dirname(sub("^--file=", "", args[grep("^--file=", args)])))  # get the path to where main.R is located
 
 ## load all externeal files
-source(paste(scriptPath,"extract_maxquant_lib.R",sep=""))
-source(paste(scriptPath,"extract_maxquant.R",sep=""))
+source(file.path(scriptPath,"extract_maxquant_lib.R"))
+source(file.path(scriptPath,"extract_maxquant.R"))
 
 
 # check if libraries are installed
@@ -47,7 +47,7 @@ checkForLibraries <- function(required_libraries){
 }
 
 # check for all packages reqiured
-required_libraries = c('yaml','getopt','optparse','PerformanceAnalytics','plotrix','limma','data.table','stats','grDevices','graphics','pheatmap','RColorBrewer','ggplot2','gridExtra','gplots')
+required_libraries = c('yaml','getopt','optparse','PerformanceAnalytics','plotrix','limma','data.table','stats','grDevices','graphics','pheatmap','RColorBrewer','ggplot2','gridExtra','gplots', 'missForest')
 checkForLibraries(required_libraries)
 
 # some qc to make sure config file exists and is well formatted
